@@ -1,145 +1,127 @@
-var AM = new AssetManager();
 
-function Animation(spriteSheet, frameWidth, frameHeight, sheetWidth, frameDuration, frames, loop, scale) {
-    this.spriteSheet = spriteSheet;
-    this.frameWidth = frameWidth;
-    this.frameDuration = frameDuration;
-    this.frameHeight = frameHeight;
-    this.sheetWidth = sheetWidth;
-    this.frames = frames;
-    this.totalTime = frameDuration * frames;
-    this.elapsedTime = 0;
-    this.loop = loop;
-    this.scale = scale;
+// GameBoard code below
+
+function distance(a, b) {
+    var difX = a.x - b.x;
+    var difY = a.y - b.y;
+    return Math.sqrt(difX * difX + difY * difY);
+};
+
+function Circle(game) {
+    this.player = 1;
+    this.radius = 20;
+    this.colors = ["Red", "Green", "Blue", "White"];
+    this.color = 3;
+    Entity.call(this, game, this.radius + Math.random() * (800 - this.radius * 2), this.radius + Math.random() * (800 - this.radius * 2));
+    this.velocity = { x: Math.random() * 100, y: Math.random() * 100 };
+    var speed = Math.sqrt(this.velocity.x * this.velocity.x + this.velocity.y * this.velocity.y);
+    if (speed > maxSpeed) {
+        var ratio = maxSpeed / speed;
+        this.velocity.x *= ratio;
+        this.velocity.y *= ratio;
+    };
 }
 
-Animation.prototype.drawFrame = function (tick, ctx, x, y) {
-    this.elapsedTime += tick;
-    if (this.isDone()) {
-        if (this.loop) this.elapsedTime = 0;
+Circle.prototype = new Entity();
+Circle.prototype.constructor = Circle;
+
+Circle.prototype.collideRight = function () {
+    return this.x + this.radius > 800;
+};
+Circle.prototype.collideLeft = function () {
+    return this.x - this.radius < 0;
+};
+Circle.prototype.collideBottom = function () {
+    return this.y + this.radius > 800;
+};
+Circle.prototype.collideTop = function () {
+    return this.y - this.radius < 0;
+};
+
+Circle.prototype.collide = function (other) {
+    return distance(this, other) < this.radius + other.radius;
+};
+
+Circle.prototype.update = function () {
+    Entity.prototype.update.call(this);
+
+    this.x += this.velocity.x * this.game.clockTick;
+    this.y += this.velocity.y * this.game.clockTick;
+
+    if (this.collideLeft() || this.collideRight()) {
+        this.velocity.x = -this.velocity.x;
     }
-    var frame = this.currentFrame();
-    var xindex = 0;
-    var yindex = 0;
-    xindex = frame % this.sheetWidth;
-    yindex = Math.floor(frame / this.sheetWidth);
+    if (this.collideTop() || this.collideBottom()) {
+        this.velocity.y = -this.velocity.y;
+    }
 
-    ctx.drawImage(this.spriteSheet,
-                 xindex * this.frameWidth, yindex * this.frameHeight,  // source from sheet
-                 this.frameWidth, this.frameHeight,
-                 x, y,
-                 this.frameWidth * this.scale,
-                 this.frameHeight * this.scale);
+    for (var i = 0; i < this.game.entities.length; i++) {
+        var ent = this.game.entities[i];
+        if (this != ent && this.collide(ent)) {
+            var temp = this.velocity;
+            this.velocity = ent.velocity;
+            ent.velocity = temp;
+        };
+    };
+
+    //for (var i = 0; i < this.game.entities.length; i++) {
+    //    var ent = this.game.entities[i];
+    //    if (this != ent) {
+    //        var dist = distance(this, ent);
+    //        var difX = (ent.x - this.x) / dist;
+    //        var difY = (ent.y - this.y) / dist;
+    //        this.velocity.x += difX / (dist * dist) * acceleration;
+    //        this.velocity.y += difY / (dist * dist) * acceleration;
+    //
+    //        var speed = Math.sqrt(this.velocity.x * this.velocity.x + this.velocity.y * this.velocity.y);
+    //        if (speed > maxSpeed) {
+    //            var ratio = maxSpeed / speed;
+    //            this.velocity.x *= ratio;
+    //            this.velocity.y *= ratio;
+    //        };
+    //    };
+    //}
+
+    this.velocity.x -= (1 - friction) * this.game.clockTick * this.velocity.x;
+    this.velocity.y -= (1 - friction) * this.game.clockTick * this.velocity.y;
+
 }
 
-Animation.prototype.currentFrame = function () {
-    return Math.floor(this.elapsedTime / this.frameDuration);
+Circle.prototype.draw = function (ctx) {
+    ctx.beginPath();
+    ctx.fillStyle = this.colors[this.color];
+    ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2, false);
+    ctx.fill();
+    ctx.closePath();
 }
 
-Animation.prototype.isDone = function () {
-    return (this.elapsedTime >= this.totalTime);
-}
+var friction = 1;
+var acceleration = 10000;
+var maxSpeed = 2000;
 
-// no inheritance
-function Background(game, spritesheet) {
-    this.x = 0;
-    this.y = 0;
-    this.spritesheet = spritesheet;
-    this.game = game;
-    this.ctx = game.ctx;
-};
+// the "main" code begins here
 
-Background.prototype.draw = function () {
-    this.ctx.drawImage(this.spritesheet,
-                   this.x, this.y);
-};
+var ASSET_MANAGER = new AssetManager();
 
-Background.prototype.update = function () {
-};
+ASSET_MANAGER.queueDownload("./img/960px-Blank_Go_board.png");
+ASSET_MANAGER.queueDownload("./img/black.png");
+ASSET_MANAGER.queueDownload("./img/white.png");
 
-function MushroomDude(game, spritesheet) {
-    this.animation = new Animation(spritesheet, 189, 230, 5, 0.10, 14, true, 1);
-    this.x = 0;
-    this.y = 0;
-    this.speed = 100;
-    this.game = game;
-    this.ctx = game.ctx;
-}
-
-MushroomDude.prototype.draw = function () {
-    this.animation.drawFrame(this.game.clockTick, this.ctx, this.x, this.y);
-}
-
-MushroomDude.prototype.update = function () {
-    if (this.animation.elapsedTime < this.animation.totalTime * 8 / 14)
-        this.x += this.game.clockTick * this.speed;
-    if (this.x > 800) this.x = -230;
-}
-
-
-// inheritance 
-function Cheetah(game, spritesheet) {
-    this.animation = new Animation(spritesheet, 512, 256, 2, 0.05, 8, true, 0.5);
-    this.speed = 350;
-    this.ctx = game.ctx;
-    Entity.call(this, game, 0, 250);
-}
-
-Cheetah.prototype = new Entity();
-Cheetah.prototype.constructor = Cheetah;
-
-Cheetah.prototype.update = function () {
-    this.x += this.game.clockTick * this.speed;
-    if (this.x > 800) this.x = -230;
-    Entity.prototype.update.call(this);
-}
-
-Cheetah.prototype.draw = function () {
-    this.animation.drawFrame(this.game.clockTick, this.ctx, this.x, this.y);
-    Entity.prototype.draw.call(this);
-}
-
-// inheritance 
-function Guy(game, spritesheet) {
-    this.animation = new Animation(spritesheet, 154, 215, 4, 0.15, 8, true, 0.5);
-    this.speed = 100;
-    this.ctx = game.ctx;
-    Entity.call(this, game, 0, 450);
-}
-
-Guy.prototype = new Entity();
-Guy.prototype.constructor = Guy;
-
-Guy.prototype.update = function () {
-    this.x += this.game.clockTick * this.speed;
-    if (this.x > 800) this.x = -230;
-    Entity.prototype.update.call(this);
-}
-
-Guy.prototype.draw = function () {
-    this.animation.drawFrame(this.game.clockTick, this.ctx, this.x, this.y);
-    Entity.prototype.draw.call(this);
-}
-
-
-AM.queueDownload("./img/RobotUnicorn.png");
-AM.queueDownload("./img/guy.jpg");
-AM.queueDownload("./img/mushroomdude.png");
-AM.queueDownload("./img/runningcat.png");
-AM.queueDownload("./img/background.jpg");
-
-AM.downloadAll(function () {
-    var canvas = document.getElementById("gameWorld");
-    var ctx = canvas.getContext("2d");
+ASSET_MANAGER.downloadAll(function () {
+    console.log("starting up da sheild");
+    var canvas = document.getElementById('gameWorld');
+    var ctx = canvas.getContext('2d');
 
     var gameEngine = new GameEngine();
+    var circle = new Circle(gameEngine);
+    circle.color = 0;
+    gameEngine.addEntity(circle);
+
+    for (var i = 0; i < 10; i++) {
+        circle = new Circle(gameEngine);
+        gameEngine.addEntity(circle);
+    };
+
     gameEngine.init(ctx);
     gameEngine.start();
-
-    gameEngine.addEntity(new Background(gameEngine, AM.getAsset("./img/background.jpg")));
-    gameEngine.addEntity(new MushroomDude(gameEngine, AM.getAsset("./img/mushroomdude.png")));
-    gameEngine.addEntity(new Cheetah(gameEngine, AM.getAsset("./img/runningcat.png")));
-    gameEngine.addEntity(new Guy(gameEngine, AM.getAsset("./img/guy.jpg")));
-
-    console.log("All Done!");
 });
