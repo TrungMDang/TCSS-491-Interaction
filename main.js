@@ -4,15 +4,17 @@ function distance(a, b) {
     return Math.sqrt(dx * dx + dy * dy);
 }
 
-function Circle(game) {
+function Circle(game,canvas) {
+	this.canvas = canvas;
     this.player = 1;
     this.radius = 20;
     this.visualRadius = 500;
     this.colors = ["Red", "Green", "Blue", "White"];
     this.setNotIt();
-    Entity.call(this, game, this.radius + Math.random() * (800 - this.radius * 2), this.radius + Math.random() * (800 - this.radius * 2));
+    Entity.call(this, game, this.radius + Math.random() * (this.canvas.clientWidth - this.radius * 2), 
+	this.radius + Math.random() * (this.canvas.clientHeight - this.radius * 2));
 
-    this.velocity = { x: Math.random() * 1000, y: Math.random() * 1000 };
+    this.velocity = { x: Math.random() * 100, y: Math.random() * 100 };
     var speed = Math.sqrt(this.velocity.x * this.velocity.x + this.velocity.y * this.velocity.y);
     if (speed > maxSpeed) {
         var ratio = maxSpeed / speed;
@@ -45,7 +47,7 @@ Circle.prototype.collideLeft = function () {
 };
 
 Circle.prototype.collideRight = function () {
-    return (this.x + this.radius) > 800;
+    return (this.x + this.radius) > this.canvas.clientWidth;
 };
 
 Circle.prototype.collideTop = function () {
@@ -53,7 +55,7 @@ Circle.prototype.collideTop = function () {
 };
 
 Circle.prototype.collideBottom = function () {
-    return (this.y + this.radius) > 800;
+    return (this.y + this.radius) > this.canvas.clientHeight;
 };
 
 Circle.prototype.update = function () {
@@ -66,7 +68,7 @@ Circle.prototype.update = function () {
     if (this.collideLeft() || this.collideRight()) {
         this.velocity.x = -this.velocity.x * friction;
         if (this.collideLeft()) this.x = this.radius;
-        if (this.collideRight()) this.x = 800 - this.radius;
+        if (this.collideRight()) this.x = this.canvas.clientWidth - this.radius;
         this.x += this.velocity.x * this.game.clockTick;
         this.y += this.velocity.y * this.game.clockTick;
     }
@@ -74,7 +76,7 @@ Circle.prototype.update = function () {
     if (this.collideTop() || this.collideBottom()) {
         this.velocity.y = -this.velocity.y * friction;
         if (this.collideTop()) this.y = this.radius;
-        if (this.collideBottom()) this.y = 800 - this.radius;
+        if (this.collideBottom()) this.y = this.canvas.clientHeight - this.radius;
         this.x += this.velocity.x * this.game.clockTick;
         this.y += this.velocity.y * this.game.clockTick;
     }
@@ -168,12 +170,27 @@ ASSET_MANAGER.downloadAll(function () {
     var ctx = canvas.getContext("2d");
 
     var gameEngine = new GameEngine();
-	 var circle = new Circle(gameEngine);
-    circle.setIt();
-    gameEngine.addEntity(circle);
-	for (var i = 0; i < 12; i++) {
-        circle = new Circle(gameEngine);
-        gameEngine.addEntity(circle);
+	//var circle = new Circle(gameEngine);
+    //var planet = new Planet(gameEngine,canvas);
+    //circle.setIt();
+    //gameEngine.addEntity(circle);
+    //gameEngine.addEntity(planet);
+
+    for (var i = 0; i < 3; i++) {
+		var numbOfSat = Math.floor(Math.random() + 5);
+
+		var satellites = [];
+		console.log("i: " + i);
+         var planet = new Planet(gameEngine, canvas);
+		 for (var j = 0; j < numbOfSat; j++) {
+			var distanceMultiplier = Math.floor(Math.random() * numbOfSat + 2); //At least two times the radius of the planet.
+
+			 console.log("j: " + j);
+			 var satellite = new Satellite(gameEngine, canvas, planet, distanceMultiplier / 100, distanceMultiplier);
+			 satellites.push(satellite);
+		 }
+		 planet.addSatellites(satellites);
+         gameEngine.addEntity(planet);
     }
     gameEngine.init(ctx);
     gameEngine.start();
