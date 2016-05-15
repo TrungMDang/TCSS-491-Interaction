@@ -168,29 +168,48 @@ ASSET_MANAGER.queueDownload("./img/white.png");
 ASSET_MANAGER.downloadAll(function () {
     var canvas = document.getElementById("gameWorld");
     var ctx = canvas.getContext("2d");
-
     var gameEngine = new GameEngine();
 	//var circle = new Circle(gameEngine);
     //var planet = new Planet(gameEngine,canvas);
     //circle.setIt();
     //gameEngine.addEntity(circle);
     //gameEngine.addEntity(planet);
-
-    for (var i = 0; i < 3; i++) {
-		var numbOfSat = Math.floor(Math.random() + 5);
+	var colors = ["Red", "Orange", "Yellow", "Green", "Blue", "Indigo", "Violet"];
+	var characteristics;
+	var totalMass = Math.floor(Math.random() * 100);	//0 - 100
+	var changingMass = totalMass;
+	console.log("Total mass: " + totalMass);
+	characteristics = {mass : totalMass, color: "Red"};
+	var bigBang = new Planet(gameEngine, canvas, characteristics);
+	gameEngine.addEntity(bigBang);
+	var numbOfPlanet = Math.random() * 6;
+	
+    for (var i = 0; i < numbOfPlanet; i++) {
+		var numbOfSat = Math.floor(Math.random() * 4);
 
 		var satellites = [];
 		console.log("i: " + i);
-         var planet = new Planet(gameEngine, canvas);
+		var planetMass = Math.floor(Math.random() * totalMass / numbOfPlanet);
+		changingMass -= planetMass;
+		characteristics = {mass: planetMass, color: colors[Math.floor(Math.random() * colors.length)]};
+        var planet = new Planet(gameEngine, canvas, characteristics);
+		var temp = 2;
 		 for (var j = 0; j < numbOfSat; j++) {
-			var distanceMultiplier = Math.floor(Math.random() * numbOfSat + 2); //At least two times the radius of the planet.
-
-			 console.log("j: " + j);
-			 var satellite = new Satellite(gameEngine, canvas, planet, distanceMultiplier / 100, distanceMultiplier);
-			 satellites.push(satellite);
+			var distanceMultiplier = 0;
+			do {
+				distanceMultiplier = Math.floor(Math.random() * numbOfSat) + temp; //At least two times the radius of the planet.
+			} while (distanceMultiplier <= temp * 0.5);
+			temp = distanceMultiplier;
+			console.log("j: " + j);
+			var satellite = new Satellite(gameEngine, canvas, planet, 0.1 / distanceMultiplier, distanceMultiplier);
+			satellites.push(satellite);
 		 }
+		 temp = 0;
 		 planet.addSatellites(satellites);
          gameEngine.addEntity(planet);
+		console.log("Planet mass: " + planetMass);
+		console.log("Changing mass: " + changingMass);
+
     }
     gameEngine.init(ctx);
     gameEngine.start();
