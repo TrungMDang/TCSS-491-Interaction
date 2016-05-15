@@ -156,35 +156,67 @@ Circle.prototype.draw = function (ctx) {
     ctx.closePath();
 
 };
+
+function Background(game, image){
+    this.x = 0;
+	this.y = 0;
+    this.imageWidth = image.width;
+    this.imageHeight = image.height;
+    this.image = image;
+    this.game = game;
+    this.ctx = game.canvas;
+	Entity.call(this, game, this.x, this.y);
+
+};
+Background.prototype = new Entity();
+
+Background.prototype.draw = function (ctx) {
+	var canvas = document.getElementById("gameWorld");
+	var ctx = canvas.getContext("2d");
+    ctx.drawImage(this.image,
+        this.x, this.y, canvas.clientWidth, canvas.clientHeight);
+	Entity.prototype.draw.call(this);
+};
+
+Background.prototype.update = function () {
+    
+};
+
+
 var friction = 1;
 var acceleration = 1000000;
-var maxSpeed = 200;
+var maxSpeed = 150;
 
 var ASSET_MANAGER = new AssetManager();
 
 ASSET_MANAGER.queueDownload("./img/black.png");
 ASSET_MANAGER.queueDownload("./img/white.png");
+ASSET_MANAGER.queueDownload("./img/universe.png");
+
 
 ASSET_MANAGER.downloadAll(function () {
     var canvas = document.getElementById("gameWorld");
     var ctx = canvas.getContext("2d");
     var gameEngine = new GameEngine();
+	gameEngine.init(ctx);
+    gameEngine.start();
+
+	gameEngine.addEntity(new Background(gameEngine, ASSET_MANAGER.getAsset("./img/universe.png")));
 	//var circle = new Circle(gameEngine);
     //var planet = new Planet(gameEngine,canvas);
     //circle.setIt();
     //gameEngine.addEntity(circle);
     //gameEngine.addEntity(planet);
+	var numbOfPlanet = 4;//Math.random() * 6 + 6;
 	var colors = ["Red", "Orange", "Yellow", "Green", "Blue", "Indigo", "Violet"];
 	var characteristics;
 	var totalMass = Math.floor(Math.random() * 100);	//0 - 100
 	var changingMass = totalMass;
 	console.log("Total mass: " + totalMass);
-	characteristics = {mass : totalMass, color: "Red"};
-	var bigBang = new Planet(gameEngine, canvas, characteristics);
+	characteristics = {id: 0, mass : totalMass, color: "white", planets: numbOfPlanet};
+	var bigBang = new BigBang(gameEngine, canvas, characteristics);
 	gameEngine.addEntity(bigBang);
-	var numbOfPlanet = Math.random() * 6;
-	
-    for (var i = 0; i < numbOfPlanet; i++) {
+    /* for (var i = 0; i < numbOfPlanet; i++) {
 		var numbOfSat = Math.floor(Math.random() * 4);
 
 		var satellites = [];
@@ -210,7 +242,5 @@ ASSET_MANAGER.downloadAll(function () {
 		console.log("Planet mass: " + planetMass);
 		console.log("Changing mass: " + changingMass);
 
-    }
-    gameEngine.init(ctx);
-    gameEngine.start();
+    } */
 });

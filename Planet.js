@@ -50,7 +50,11 @@ Satellite.prototype.update = function() {
 	this.angularSpeed += this.initialSpeed;
 	this.x = this.planet.radius * this.distanceMultiplier * Math.cos(this.angularSpeed) + this.planet.x;
 	this.y = this.planet.radius * this.distanceMultiplier * Math.sin(this.angularSpeed) + this.planet.y;
-    Entity.prototype.update.call(this);
+    this.radius = this.planet.radius / 3;
+	if (this.radius <= 1) {
+		this.removeFromWorld = true;
+	}
+	Entity.prototype.update.call(this);
 
 };
 
@@ -78,14 +82,17 @@ var friction = 1;
 function Planet(game, canvas, characteristics) {
 	this.game = game;
 	this.canvas = canvas;
+	this.id = characteristics.id;
 	this.mass = characteristics.mass;
 	this.actualColor = characteristics.color;
+	this.x = characteristics.x;
+	this.y = characteristics.y;
     this.player = 1;
     this.radius = 20;
-    this.visualRadius = 20;
+    this.visualRadius = 200;
     this.colors = ["Red", "Green", "Blue", "White"];
     this.setNotIt();
-
+	this.okToCollide = false;
     this.velocity = { x: Math.random() * 200, y: Math.random() * 200 };
     var speed = Math.sqrt(this.velocity.x * this.velocity.x + this.velocity.y * this.velocity.y);
     if (speed > maxSpeed) {
@@ -93,9 +100,12 @@ function Planet(game, canvas, characteristics) {
         this.velocity.x *= ratio;
         this.velocity.y *= ratio;
     }
+	this.collideCount = 0;
+	this.gravityField = 0;
 	//this.satellite = new Satellite(this.game, canvas, this);
 	this.satellites = [];
 	this.removeFromWorld = false;
+	//Entity.call(this, game, this.x, this.y);
     Entity.call(this, game, this.radius + Math.random() * (this.canvas.clientWidth - this.radius * 2), this.radius + Math.random() * (this.canvas.clientHeight - this.radius * 2));
 
 };
@@ -106,6 +116,11 @@ Planet.prototype.constructor = Planet;
 Planet.prototype.addSatellites = function(satellites) {
 	this.satellites = satellites;
 };
+
+Planet.prototype.addGravityField = function(gravityField) {
+	this.gravityField = gravityField;
+};
+
 Planet.prototype.setIt = function () {
     this.it = true;
     this.color = 0;
@@ -141,7 +156,8 @@ Planet.prototype.collideBottom = function () {
 Planet.prototype.update = function () {
     Entity.prototype.update.call(this);
  //  console.log(this.velocity);
-
+	//console.log("ID: " + this.id);
+	//console.log("---gravity field: " + this.gravityField);
     this.x += this.velocity.x * this.game.clockTick;
     this.y += this.velocity.y * this.game.clockTick;
 
@@ -160,17 +176,57 @@ Planet.prototype.update = function () {
         this.x += this.velocity.x * this.game.clockTick;
         this.y += this.velocity.y * this.game.clockTick;
     }
-
+	var collideFlag = true;
     for (var i = 0; i < this.game.entities.length; i++) {
         var ent = this.game.entities[i];
 		if (ent != this && ent.radius <= 2) {
 			ent.removeFromWorld = true;
 		}
-        if (ent !== this && this.collide(ent)) {
+		
+		if (this.okToCollide == false) {
+			if (ent != this && this.collide({ x: ent.x, y: ent.y, radius: this.gravityField })) {
+			console.log("collide within proximity");
+
+            /* var dist = distance(this, ent);
+            if (this.it && dist > this.radius + ent.radius + 10) {
+							console.log("3 if");
+
+                var difX = (ent.x - this.x)/dist;
+                var difY = (ent.y - this.y)/dist;
+                this.velocity.x += difX * acceleration / (dist*dist);
+                this.velocity.y += difY * acceleration / (dist * dist);
+                var speed = Math.sqrt(this.velocity.x*this.velocity.x + this.velocity.y*this.velocity.y);
+                if (speed > maxSpeed) {
+                    var ratio = maxSpeed / speed;
+                    this.velocity.x *= ratio;
+                    this.velocity.y *= ratio;
+                }
+            }
+            if (ent.it && dist > this.radius + ent.radius) {
+				console.log("4 if");
+
+                var difX = (ent.x - this.x) / dist;
+                var difY = (ent.y - this.y) / dist;
+                this.velocity.x -= difX * acceleration / (dist * dist);
+                this.velocity.y -= difY * acceleration / (dist * dist);
+                var speed = Math.sqrt(this.velocity.x * this.velocity.x + this.velocity.y * this.velocity.y);
+                if (speed > maxSpeed) {
+                    var ratio = maxSpeed / speed;
+                    this.velocity.x *= ratio;
+                    this.velocity.y *= ratio;
+                }
+            } */
+			} else if (ent != this && !this.collide({ x: ent.x, y: ent.y, radius: this.gravityField })) { //not collide
+				this.collideCount++;
+
+			}
+		}
+		if (this.okToCollide == true) {
+			if (ent !== this && this.collide(ent)) {
 			console.log("first if");
 			this.radius -= 2;
 			ent.radius -= 2;
-            var temp = { x: this.velocity.x, y: this.velocity.y };
+            var radiusMultiplier = { x: this.velocity.x, y: this.velocity.y };
 
             var dist = distance(this, ent);
             var delta = this.radius + ent.radius - dist;
@@ -184,21 +240,24 @@ Planet.prototype.update = function () {
 
             this.velocity.x = ent.velocity.x * friction;
             this.velocity.y = ent.velocity.y * friction;
-            ent.velocity.x = temp.x * friction;
-            ent.velocity.y = temp.y * friction;
+            ent.velocity.x = radiusMultiplier.x * friction;
+            ent.velocity.y = radiusMultiplier.y * friction;
             this.x += this.velocity.x * this.game.clockTick;
             this.y += this.velocity.y * this.game.clockTick;
             ent.x += ent.velocity.x * this.game.clockTick;
             ent.y += ent.velocity.y * this.game.clockTick;
-            if (this.it) {
-                this.setNotIt();
-                ent.setIt();
-            }
-            else if (ent.it) {
-                this.setIt();
-                ent.setNotIt();
-            }
-        }
+				if (this.it) {
+					this.setNotIt();
+					ent.setIt();
+				}
+				else if (ent.it) {
+					this.setIt();
+					ent.setNotIt();
+				}
+			}
+			this.gravityField -= 4;
+		}
+        
 		
 		
 
@@ -236,12 +295,17 @@ Planet.prototype.update = function () {
             }
         } */
     }
-
-
+	//console.log(this.collideCount + " " + (this.game.entities.length - 1));
+	if (this.collideCount == this.game.entities.length - 1) {
+		this.okToCollide = true;
+	} else {
+		this.okToCollide = false;
+	}
     this.velocity.x -= (1 - friction) * this.game.clockTick * this.velocity.x;
     this.velocity.y -= (1 - friction) * this.game.clockTick * this.velocity.y;
 	//this.x = this.x -  this.radius * 3 - this.radius / 2;
     //this.y = this.y - this.radius * 3 - this.radius / 2;
+
 	for (var i = 0; i < this.satellites.length; i++) {
 		this.satellites[i].update();
 	};
@@ -377,3 +441,87 @@ Planet.prototype.draw = function(ctx) {
 	//ctx.restore();
     this.satellite.draw(ctx);
 }; */
+const colors = ["Red", "Orange", "Yellow", "Green", "Blue", "Indigo", "Violet"];
+
+function BigBang(gameEngine, canvas, characteristics) {
+	this.game = gameEngine;
+	this.canvas = canvas;
+	this.mass = characteristics.mass;
+	this.actualColor = characteristics.color;
+	this.numbOfPlanets = characteristics.planets;
+	this.x = canvas.clientWidth / 2;
+	this.y = canvas.clientHeight / 2;
+	this.radius = 5;
+	this.rate = 0.1;
+	this.explode = false;
+	this.planets = [];
+	Entity.call(this, gameEngine, this.x, this.y);
+};
+BigBang.prototype = new Entity();
+BigBang.prototype.constructor = BigBang;
+
+BigBang.prototype.addPlanets = function() {
+	var gravityField = 0;
+	for (var i = 0; i < this.numbOfPlanets; i++) {
+		var numbOfSat = Math.floor(Math.random() * 4);
+
+		var satellites = [];
+		console.log("i: " + i);
+		var planetMass = Math.floor(Math.random() * this.mass / this.numbOfPlanets);
+		var characteristics = {id: (i + 1), mass: planetMass, color: colors[Math.floor(Math.random() * colors.length)]
+									, x: this.x, y: this.y};
+        var planet = new Planet(this.game, this.canvas, characteristics);
+		var radiusMultiplier = 2;
+		 for (var j = 0; j < numbOfSat; j++) {
+			var distanceMultiplier = 0;
+			do {
+				distanceMultiplier = Math.floor(Math.random() * numbOfSat) + radiusMultiplier; //At least two times the radius of the planet.
+			} while (distanceMultiplier <= radiusMultiplier * 0.5);
+			radiusMultiplier = distanceMultiplier;
+			console.log("j: " + j);
+			//The further the farther the satellite from planet
+			var satellite = new Satellite(this.game, this.canvas, 
+									planet, 0.1 / distanceMultiplier, distanceMultiplier);
+			gravityField += distanceMultiplier * planet.radius / 3;									
+			satellites.push(satellite);
+		 }
+		 radiusMultiplier = 0;
+		planet.addGravityField(gravityField);
+		 planet.addSatellites(satellites);
+         this.game.addEntity(planet);
+	}
+};
+BigBang.prototype.update = function() {
+	//this.x = Math.floor(this.x);
+	//this.y = Math.floor(this.y);
+	//console.log(this.radius);
+	if (this.radius >= 200) {
+		this.explode = true;
+	} else {
+		
+		this.radius += this.rate;
+		this.rate += 0.01;
+	}
+	if (this.explode) {
+		 //this.radius + Math.random() * (this.canvas.clientWidth - this.radius * 2), this.radius + Math.random() * (this.canvas.clientHeight - this.radius * 2)
+		this.addPlanets();
+		this.removeFromWorld = true;
+	}
+	Entity.prototype.update.call(this);
+};
+
+BigBang.prototype.draw = function(ctx) {
+	
+	if (this.explode) {
+		
+	} else {
+		ctx.beginPath();
+		ctx.fillStyle = this.actualColor;
+		ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2, false);
+		ctx.fill();
+		ctx.closePath()
+	}
+	Entity.prototype.draw.call(this);
+};
+
+

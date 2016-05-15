@@ -12,6 +12,7 @@ window.requestAnimFrame = (function () {
 function GameEngine() {
     this.entities = [];
     this.canvas = null;
+	this.ctx = null;
     this.surfaceWidth = null;
     this.surfaceHeight = null;
 }
