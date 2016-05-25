@@ -192,6 +192,7 @@ var ASSET_MANAGER = new AssetManager();
 ASSET_MANAGER.queueDownload("./img/black.png");
 ASSET_MANAGER.queueDownload("./img/white.png");
 ASSET_MANAGER.queueDownload("./img/universe.png");
+ASSET_MANAGER.queueDownload("./img/laser.png");
 
 
 ASSET_MANAGER.downloadAll(function () {
@@ -207,40 +208,44 @@ ASSET_MANAGER.downloadAll(function () {
     //circle.setIt();
     //gameEngine.addEntity(circle);
     //gameEngine.addEntity(planet);
-	var numbOfPlanet = 4;//Math.random() * 6 + 6;
+	var numbOfPlanet = 2;//Math.random() * 6 + 6;
 	var colors = ["Red", "Orange", "Yellow", "Green", "Blue", "Indigo", "Violet"];
 	var characteristics;
 	var totalMass = Math.floor(Math.random() * 100);	//0 - 100
 	var changingMass = totalMass;
 	console.log("Total mass: " + totalMass);
 	characteristics = {id: 0, mass : totalMass, color: "white", planets: numbOfPlanet};
-	var bigBang = new BigBang(gameEngine, canvas, characteristics);
-	gameEngine.addEntity(bigBang);
-    /* for (var i = 0; i < numbOfPlanet; i++) {
-		var numbOfSat = Math.floor(Math.random() * 4);
+	//var bigBang = new BigBang(gameEngine, canvas, characteristics);
+	//gameEngine.addEntity(bigBang);
+    for (var i = 0; i < numbOfPlanet; i++) {
+		var numbSent = Math.floor(Math.random() * 5);
 
-		var satellites = [];
+		var sentinels = [];
 		console.log("i: " + i);
 		var planetMass = Math.floor(Math.random() * totalMass / numbOfPlanet);
 		changingMass -= planetMass;
-		characteristics = {mass: planetMass, color: colors[Math.floor(Math.random() * colors.length)]};
+		characteristics = {id: i, mass: planetMass, color: colors[Math.floor(Math.random() * colors.length)]};
         var planet = new Planet(gameEngine, canvas, characteristics);
 		var temp = 2;
-		 for (var j = 0; j < numbOfSat; j++) {
+		 for (var j = 0; j < numbSent; j++) {
+			var hasWeapon = false;
+			if (j == numbSent - 1) {
+				hasWeapon = true;
+			}
 			var distanceMultiplier = 0;
 			do {
-				distanceMultiplier = Math.floor(Math.random() * numbOfSat) + temp; //At least two times the radius of the planet.
+				distanceMultiplier = Math.floor(Math.random() * numbSent) + temp; //At least two times the radius of the planet.
 			} while (distanceMultiplier <= temp * 0.5);
 			temp = distanceMultiplier;
 			console.log("j: " + j);
-			var satellite = new Satellite(gameEngine, canvas, planet, 0.1 / distanceMultiplier, distanceMultiplier);
-			satellites.push(satellite);
+			var sentinel = new Sentinel(gameEngine, canvas, planet, 0.1 / distanceMultiplier, distanceMultiplier, hasWeapon);
+			sentinels.push(sentinel);
 		 }
 		 temp = 0;
-		 planet.addSatellites(satellites);
+		 planet.addSentinels(sentinels);
          gameEngine.addEntity(planet);
 		console.log("Planet mass: " + planetMass);
 		console.log("Changing mass: " + changingMass);
 
-    } */
+    }
 });

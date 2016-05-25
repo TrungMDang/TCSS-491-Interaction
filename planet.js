@@ -19,27 +19,87 @@ function gravity(a, b) {
 	return G * a.mass * b.mass / (r * r);
 }
 
-function Satellite(gameEngine, canvas, planet, speed, distanceMultiplier){
+function hasWeapon(planet,angle) {
+	
+}
+
+function Projectile(Sentinel, gameEngine, angle, target) {
+	this.source = Sentinel;
+	this.game = gameEngine;
+	this.ctx = gameEngine.canvas;
+	this.angle = angle;
+	this.target = target;
+	this.radial_distance = 0;
+	this.x = this.source.x;
+	this.y = this.source.y;
+	this.speed = 200;
+	this.animation = new Animation(ASSET_MANAGER.getAsset("./img/laser.png"), 290, 1, true);
+};
+Projectile.prototype = new Entity();
+Projectile.prototype.constructor = Projectile;
+
+Projectile.prototype.update = function() {
+	console.log("Total entities:" + this.game.entities.length);
+	console.log(this.x + " " + this.y);
+	if (this.outsideWorld()) {
+		console.log("out");
+		this.removeFromWorld = true;
+	} else {
+		this.x = this.radial_distance * Math.cos(this.angle);
+		this.y = this.radial_distance * Math.sin(this.angle);
+		this.radial_distance += this.speed * this.game.clockTick;
+	}
+    
+	Entity.prototype.update.call(this);
+};
+
+Projectile.prototype.draw = function(ctx) {
+	ctx.save();
+	ctx.translate(this.x, this.y);
+	ctx.rotate(this.angle * Math.PI / 2);
+	this.animation.drawFrame(this.game.clockTick, this.ctx, this.x, this.x, 0.25);
+	ctx.translate(-this.y, -this.y);
+
+	ctx.restore();
+	Entity.prototype.draw.call(this);
+};
+
+function Sentinel(gameEngine, canvas, planet, speed, distanceMultiplier, hasWeapon){
     this.game = gameEngine;
     this.canvas = canvas;
     this.planet = planet;
+	this.radius = this.planet.radius / 3;
     this.x = this.planet.x -  this.planet.radius * distanceMultiplier - this.radius / 2;
     this.y = this.planet.y - this.planet.radius * distanceMultiplier - this.radius / 2;
-    this.radius = this.planet.radius / 3;
     this.mass = 10;
     this.rotationTime = 2;
 	this.angularSpeed = speed;
 	this.initialSpeed = speed;
 	this.distanceMultiplier = distanceMultiplier;
+	this.hasWeapon = hasWeapon;
 	this.removeFromWorld = false;
+	this.reloadTime = 5;
+	//this.shoot = false;
+	this.projectiles = [];
+	this.angle = 0;
+	this.target = null;
+	this.fullAmmo = false;
     Entity.call(gameEngine, this.x, this.y);
 
 };
-Satellite.prototype = new Entity();
-Satellite.prototype.constructor = Satellite;
+Sentinel.prototype = new Entity();
+Sentinel.prototype.constructor = Sentinel;
 
-Satellite.prototype.update = function() {
-
+Sentinel.prototype.shoot = function(target) {
+	var bullet = new Projectile(this, this.game, this.angle, target);
+	this.game.addEntity(bullet);
+};
+Sentinel.prototype.update = function() {
+	this.angle = Math.atan2(this.y, this.x);
+	if (this.angle < 0) {
+		this.angle += 2 * Math.PI;
+	}
+	//console.log(this.planet.id + " " + this.angle);
     //Move in a Planet
 
     //this.x = this.planet.x -  this.planet.radius * 2 - this.radius / 2;
@@ -54,11 +114,42 @@ Satellite.prototype.update = function() {
 	if (this.radius <= 1) {
 		this.removeFromWorld = true;
 	}
+	if (this.hasWeapon) {
+		this.reloadTime -= this.game.clockTick % 10;
+		if (this.reloadTime <= 0) {
+			this.fullAmmo = true;
+		}
+	}
+	
+	for (var i = 0; i < this.game.entities.length; i++) {
+		var target = this.game.entities[i];
+		var isSentinel = target instanceof Sentinel;
+		var isBackground = target instanceof Background;
+		if (target !== this && !isSentinel && !isBackground) {
+			//console.log(target.id);
+			var angle = Math.atan2(target.y, target.x);
+			if (angle < 0) {
+				angle += 2 * Math.PI;
+			}
+			
+			if (angle == this.angle) {		//Straight line to target, shootable
+				console.log(this.angle + " target: " + angle);
+
+				this.target = target;
+				if (this.fullAmmo) {
+					this.shoot(target);
+					this.reloadTime = 5;
+					console.log("Shot");
+				}
+			}
+		}
+	}
+	//console.log(this.reloadTime);
 	Entity.prototype.update.call(this);
 
 };
 
-Satellite.prototype.draw = function(ctx) {
+Sentinel.prototype.draw = function(ctx) {
 
     //ctx.save();
 	//ctx.translate(this.canvas.clientWidth / 2, this.canvas.clientHeight / 2);
@@ -74,6 +165,11 @@ Satellite.prototype.draw = function(ctx) {
     ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2, false);
     ctx.fill();
     ctx.closePath();
+	if (this.shoot) {
+		for (var i = 0; i < this.projectiles.length; i++) {
+			this.projectiles[i].draw(ctx);
+		}
+	}
     //ctx.restore();
 };
 
@@ -102,8 +198,8 @@ function Planet(game, canvas, characteristics) {
     }
 	this.collideCount = 0;
 	this.gravityField = 0;
-	//this.satellite = new Satellite(this.game, canvas, this);
-	this.satellites = [];
+	//this.Sentinel = new Sentinel(this.game, canvas, this);
+	this.Sentinels = [];
 	this.removeFromWorld = false;
 	//Entity.call(this, game, this.x, this.y);
     Entity.call(this, game, this.radius + Math.random() * (this.canvas.clientWidth - this.radius * 2), this.radius + Math.random() * (this.canvas.clientHeight - this.radius * 2));
@@ -113,8 +209,8 @@ function Planet(game, canvas, characteristics) {
 Planet.prototype = new Entity();
 Planet.prototype.constructor = Planet;
 
-Planet.prototype.addSatellites = function(satellites) {
-	this.satellites = satellites;
+Planet.prototype.addSentinels = function(Sentinels) {
+	this.Sentinels = Sentinels;
 };
 
 Planet.prototype.addGravityField = function(gravityField) {
@@ -183,7 +279,6 @@ Planet.prototype.update = function () {
 			ent.removeFromWorld = true;
 		}
 		
-		if (this.okToCollide == false) {
 			if (ent != this && this.collide({ x: ent.x, y: ent.y, radius: this.gravityField })) {
 			console.log("collide within proximity");
 
@@ -216,12 +311,9 @@ Planet.prototype.update = function () {
                     this.velocity.y *= ratio;
                 }
             } */
-			} else if (ent != this && !this.collide({ x: ent.x, y: ent.y, radius: this.gravityField })) { //not collide
-				this.collideCount++;
-
-			}
+			
 		}
-		if (this.okToCollide == true) {
+		
 			if (ent !== this && this.collide(ent)) {
 			console.log("first if");
 			this.radius -= 2;
@@ -256,7 +348,7 @@ Planet.prototype.update = function () {
 				}
 			}
 			this.gravityField -= 4;
-		}
+		
         
 		
 		
@@ -306,8 +398,8 @@ Planet.prototype.update = function () {
 	//this.x = this.x -  this.radius * 3 - this.radius / 2;
     //this.y = this.y - this.radius * 3 - this.radius / 2;
 
-	for (var i = 0; i < this.satellites.length; i++) {
-		this.satellites[i].update();
+	for (var i = 0; i < this.Sentinels.length; i++) {
+		this.Sentinels[i].update();
 	};
 };
 
@@ -320,8 +412,8 @@ Planet.prototype.draw = function (ctx) {
     ctx.fill();
     ctx.closePath();
 	//ctx.restore();
-	for (var i = 0; i < this.satellites.length; i++) {
-		this.satellites[i].draw(ctx);
+	for (var i = 0; i < this.Sentinels.length; i++) {
+		this.Sentinels[i].draw(ctx);
 	};
 	
 
@@ -347,7 +439,7 @@ function Planet(gameEngine, canvas) {
 	Entity.call(this, this.game, this.radius + Math.random() * (this.canvas.clientWidth - this.radius * 2), this.radius + Math.random() * (this.canvas.clientHeight - this.radius * 2));
 
     //Entity.call(gameEngine, this.canvas.clientWidth / 2, this.canvas.clientHeight / 2);
-    this.satellite = new Satellite(gameEngine, canvas,this);
+    this.Sentinel = new Sentinel(gameEngine, canvas,this);
 
 };
 
@@ -421,7 +513,7 @@ Planet.prototype.update = function(){
 	//this.x -= this.canvas.clientWidth / 2;
 	//this.y -= this.canvas.clientHeight / 2;
 	console.log(this.x + " " + this.y);
-    this.satellite.update();
+    this.Sentinel.update();
     Entity.prototype.update.call(this);
 };
 
@@ -439,7 +531,7 @@ Planet.prototype.draw = function(ctx) {
     ctx.stroke();
     ctx.closePath();
 	//ctx.restore();
-    this.satellite.draw(ctx);
+    this.Sentinel.draw(ctx);
 }; */
 const colors = ["Red", "Orange", "Yellow", "Green", "Blue", "Indigo", "Violet"];
 
@@ -465,7 +557,7 @@ BigBang.prototype.addPlanets = function() {
 	for (var i = 0; i < this.numbOfPlanets; i++) {
 		var numbOfSat = Math.floor(Math.random() * 4);
 
-		var satellites = [];
+		var Sentinels = [];
 		console.log("i: " + i);
 		var planetMass = Math.floor(Math.random() * this.mass / this.numbOfPlanets);
 		var characteristics = {id: (i + 1), mass: planetMass, color: colors[Math.floor(Math.random() * colors.length)]
@@ -479,15 +571,15 @@ BigBang.prototype.addPlanets = function() {
 			} while (distanceMultiplier <= radiusMultiplier * 0.5);
 			radiusMultiplier = distanceMultiplier;
 			console.log("j: " + j);
-			//The further the farther the satellite from planet
-			var satellite = new Satellite(this.game, this.canvas, 
+			//The further the farther the Sentinel from planet
+			var Sentinel = new Sentinel(this.game, this.canvas, 
 									planet, 0.1 / distanceMultiplier, distanceMultiplier);
 			gravityField += distanceMultiplier * planet.radius / 3;									
-			satellites.push(satellite);
+			Sentinels.push(Sentinel);
 		 }
 		 radiusMultiplier = 0;
 		planet.addGravityField(gravityField);
-		 planet.addSatellites(satellites);
+		 planet.addSentinels(Sentinels);
          this.game.addEntity(planet);
 	}
 };
