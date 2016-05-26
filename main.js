@@ -208,7 +208,7 @@ ASSET_MANAGER.downloadAll(function () {
     //circle.setIt();
     //gameEngine.addEntity(circle);
     //gameEngine.addEntity(planet);
-	var numbOfPlanet = 2;//Math.random() * 6 + 6;
+	var numbOfPlanet = Math.random() * 6;
 	var colors = ["Red", "Orange", "Yellow", "Green", "Blue", "Indigo", "Violet"];
 	var characteristics;
 	var totalMass = Math.floor(Math.random() * 100);	//0 - 100
@@ -221,7 +221,7 @@ ASSET_MANAGER.downloadAll(function () {
 		var numbSent = Math.floor(Math.random() * 5);
 
 		var sentinels = [];
-		console.log("i: " + i);
+		//console.log("i: " + i);
 		var planetMass = Math.floor(Math.random() * totalMass / numbOfPlanet);
 		changingMass -= planetMass;
 		characteristics = {id: i, mass: planetMass, color: colors[Math.floor(Math.random() * colors.length)]};

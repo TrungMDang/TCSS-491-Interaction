@@ -15,6 +15,8 @@ function GameEngine() {
 	this.ctx = null;
     this.surfaceWidth = null;
     this.surfaceHeight = null;
+	this.space = false;
+	this.spaceCount = 0;
 }
 
 GameEngine.prototype.init = function (ctx) {
@@ -79,8 +81,17 @@ GameEngine.prototype.startInput = function () {
     }, false);
 
     this.canvas.canvas.addEventListener("keydown", function (e) {
-        console.log(e);
-        console.log("Key Down Event - Char " + e.code + " Code " + e.keyCode);
+        //console.log(e);
+        //console.log("Key Down Event - Char " + e.code + " Code " + e.keyCode);
+		if (String.fromCharCode(e.which) === ' ') {
+            that.space = true;
+			if (that.spaceCount >= 1) {
+				that.space = false;
+				that.spaceCount = 0;
+			} else {
+				that.spaceCount++;
+			}
+        }
     }, false);
 
     this.canvas.canvas.addEventListener("keypress", function (e) {
