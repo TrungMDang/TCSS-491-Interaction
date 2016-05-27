@@ -5,6 +5,7 @@ const G = 6.674 * Math.pow();
 const colors = ["Red", "Orange", "Yellow", "Green", "Blue", "Indigo", "Violet"];
 const quadrants = [1, 2, 3, 4];
 const ACCURACY = 5;
+const SHOOTABLE_DISTANCE = 20;
  function distance(a, b, gravity) {
 	 if (gravity) {
 		var dx = (a.x) - (b.x);
@@ -34,7 +35,7 @@ function quadrant(origin, target) {
 }
 
 function Projectile(sentinel, gameEngine, target, angle) {
-	this.speed = 20;
+	this.speed = 18;
 	this.source = sentinel;
 	this.game = gameEngine;
 	this.ctx = gameEngine.canvas;
@@ -50,37 +51,57 @@ function Projectile(sentinel, gameEngine, target, angle) {
 	this.speedX = difX;
 	this.speedY = difY;
 
-	this.radius = sentinel.radius / 1.5;
+	this.radius = sentinel.radius / 1.25;
 	//console.log(this.speedX + " " + this.speedY);
+//Animation(spriteSheet, frameWidth, frameHeight, sheetWidth, frameDuration, frames, loop, scale)
+	//this.animation = new Animation(ASSET_MANAGER.getAsset("./img/laser.png"), 290, 74, 290, 1, 1, true, 0.5);
+	Entity.call(this, this.game, this.x, this.y);
 
-	//this.animation = new Animation(ASSET_MANAGER.getAsset("./img/laser.png"), 290, 1, true);
-	Entity.prototype.draw.call(this);
 
 };
 Projectile.prototype = new Entity();
 Projectile.prototype.constructor = Projectile;
 
+Projectile.prototype.collide = function (other) {
+    return distance(this, other) < this.radius + other.radius;
+};
 Projectile.prototype.update = function() {
-	//console.log("Total entities:" + this.game.entities.length);
 	//console.log(this.x + " " + this.y);
 	if (this.outsideWorld()) {
-		//console.log("out");
+		console.log("out");
 		this.removeFromWorld = true;
 	} else {
-		//x += speed
 		this.x += this.speedX * this.game.clockTick;
 		this.y += this.speedY * this.game.clockTick;
-		//this.radial_distance += this.speed * this.game.clockTick;
-		
+		for (var i = 0; i < this.game.entities.length; i++) {
+			var ent = this.game.entities[i];
+			if (ent instanceof Planet && ent != this.source.planet && this.collide(ent)) {
+				//console.log("bullet hits");
+				this.removeFromWorld = true;
+				ent.radius -= 2;				
+			}
+			if (ent instanceof Planet && ent != this.source.planet) {
+				for (var j = 0; j < ent.sentinels.length; j++) {
+					var sent = ent.sentinels[j];
+					if (this.collide(sent)) {
+						this.removeFromWorld = true;
+					}
+				}
+			}		
+		}	
 	}
+	
 	Entity.prototype.update.call(this);
 };
 
 Projectile.prototype.draw = function(ctx) {
 	ctx.beginPath();
     ctx.fillStyle = "red";
+	ctx.strokeStyle = "white";
+	ctx.strokeWidth = "2";
     ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2, false);
     ctx.fill();
+	ctx.stroke();
     ctx.closePath();
 	Entity.prototype.draw.call(this);
 };
@@ -105,7 +126,7 @@ function Sentinel(gameEngine, canvas, planet, speed, distanceMultiplier, hasWeap
 	this.angle = 0;
 	this.target = null;
 	this.fullAmmo = false;
-    Entity.call(gameEngine, this.x, this.y);
+	Entity.call(this, this.game, this.x, this.y);
 
 };
 Sentinel.prototype = new Entity();
@@ -115,26 +136,14 @@ function shootTarget(source, game, target, angle) {
 	var bullet = new Projectile(source, game, target, angle);
 	source.projectiles.push(bullet);
 };
-Sentinel.prototype.update = function() {
-	//console.log("************************************");
-	
-	
+Sentinel.prototype.update = function() {	
 	if (this.game.space == false) {
 		if (this.hasWeapon) {
-			//var dist = distance(this, this.planet, false);
 			var difX = Math.abs(this.x - this.planet.x);
 			var difY =  Math.abs(this.y - this.planet.y);
 			var tan = difY / difX;
 			angle = Math.atan(tan);
-	
-			//if (angle < 0) {
-				//angle += 2 * Math.PI;
-			//}
 			this.angle = angle;
-			//console.log("Angle: " + this.angle * 180 / Math.PI);
-			//console.log("ID: " + this.planet.actualColor + " Angle: " + angle * 180 / Math.PI);
-			//console.log(this.reloadTime);
-
 			this.reloadTime -= this.game.clockTick % 10;
 			if (this.reloadTime <= 0) {
 				this.fullAmmo = true;
@@ -142,19 +151,14 @@ Sentinel.prototype.update = function() {
 			for (var i = 0; i < this.game.entities.length; i++) {
 				var target = this.game.entities[i];
 				var dist = distance(this, target, false);
-
-				//var isSentinel = target instanceof Sentinel;
-				//var isBackground = target instanceof Background;
-				if (dist > 50 && target != this && target.actualColor != this.actualColor 
-						&& !(target instanceof Sentinel) && !(target instanceof Background)) {
+				if (dist > SHOOTABLE_DISTANCE && target != this && target.actualColor != this.actualColor 
+						&& target instanceof Planet) {
 
 					var difXTarget = target.x - this.planet.x;
 					var difYTarget = target.y - this.planet.y;
 					var tanT = difYTarget / difXTarget;
 					var angleTarget = Math.atan(tanT);
-					//if (angleTarget < 0) {
-						//angleTarget += 2 * Math.PI;
-					//}
+					
 					var targetQ = quadrant(this.planet, target);
 					var thisQ = quadrant(this.planet, this);
 					if (thisQ == targetQ) {
@@ -171,19 +175,7 @@ Sentinel.prototype.update = function() {
 							//console.log("shot target " + target.actualColor);
 						}
 					}
-					
-					
-					/* if (Math.abs(angle - this.angle) < 0.2) {		//Straight line to target, shootable
-						//console.log((this.angle * 180 / Math.PI) + " target: " + (angle * 180 / Math.PI));
-
-						this.target = target;
-						if (this.fullAmmo) {
-							this.shootTarget(target);
-							this.reloadTime = 5;
-							console.log("Shot");
-						}
-					} */
-					}
+				} 
 			}
 			if (this.shoot) {
 				for (var i = 0; i < this.projectiles.length; i++) {
@@ -195,41 +187,18 @@ Sentinel.prototype.update = function() {
 		
 			}
 		}
-		
-		//console.log(this.planet.id + " " + this.angle);
-		//Move in a Planet
-
-		//this.x = this.planet.x -  this.planet.radius * 2 - this.radius / 2;
-		//this.y = this.planet.y - this.planet.radius * 2- this.radius / 2;
-
-		//var speed = 2 * Math.PI * this.planet.radius * 3 / this.rotationTime;
-
 		this.angularSpeed += this.initialSpeed;
 		this.x = this.planet.radius * this.distanceMultiplier * Math.cos(this.angularSpeed) + this.planet.x;
 		this.y = this.planet.radius * this.distanceMultiplier * Math.sin(this.angularSpeed) + this.planet.y;
 		this.radius = this.planet.radius / 3;
 		if (this.radius <= 1) {
 			this.removeFromWorld = true;
-		}
-		
-		
-		//console.log(this.reloadTime);
+		}	
 	}
-	//console.log("shooting");
-	//	this.shootTarget(target);
-	
-	//	for (var i = 0; i < this.projectiles.length; i++) {
-	//		this.projectiles[i].update();
-	//}
 	Entity.prototype.update.call(this);
 };
 
 Sentinel.prototype.draw = function(ctx) {
-
-    //ctx.save();
-	//ctx.translate(this.canvas.clientWidth / 2, this.canvas.clientHeight / 2);
-
-    //ctx.rotate(10 * Math.PI / 180)
 	ctx.beginPath();
     ctx.strokeStyle = "red";
     ctx.arc(this.planet.x, this.planet.y, this.planet.radius * this.distanceMultiplier, 0, Math.PI * 2, false);
@@ -238,23 +207,19 @@ Sentinel.prototype.draw = function(ctx) {
     ctx.beginPath();
 	if (this.hasWeapon) {
 		ctx.fillStyle = "white";
-	} else 
-    ctx.fillStyle = "blue";
+		
+	} else {
+		ctx.fillStyle = "blue";
+	}
+	ctx.beginPath();
     ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2, false);
     ctx.fill();
     ctx.closePath();
 	if (this.shoot) {
-		for (var i = 0; i < this.projectiles.length; i++) {
-			
+		for (var i = 0; i < this.projectiles.length; i++) {			
 			this.projectiles[i].draw(ctx);
 		}
-		//this.shoot = false;
 	}
-	//ctx.beginPath();
-	//ctx.fillStyle = "white";
-	//ctx.fillRect(this.x, this.y, 5, 5);
-	//ctx.closePath();
-    //ctx.restore();
 };
 
 var friction = 1;
@@ -271,7 +236,7 @@ function Planet(game, canvas, characteristics) {
     this.radius = 20;
     this.visualRadius = 200;
     this.colors = ["Red", "Green", "Blue", "White"];
-    this.setNotIt();
+    //this.setNotIt();
 	this.okToCollide = false;
     this.velocity = { x: Math.random() * 200, y: Math.random() * 200 };
     var speed = Math.sqrt(this.velocity.x * this.velocity.x + this.velocity.y * this.velocity.y);
@@ -400,9 +365,7 @@ Planet.prototype.update = function () {
 			}
 			
 				if (ent !== this && this.collide(ent)) {
-				console.log("first if");
-				this.radius -= 2;
-				ent.radius -= 2;
+				
 				var radiusMultiplier = { x: this.velocity.x, y: this.velocity.y };
 
 				var dist = distance(this, ent);
@@ -423,57 +386,9 @@ Planet.prototype.update = function () {
 				this.y += this.velocity.y * this.game.clockTick;
 				ent.x += ent.velocity.x * this.game.clockTick;
 				ent.y += ent.velocity.y * this.game.clockTick;
-					if (this.it) {
-						this.setNotIt();
-						ent.setIt();
-					}
-					else if (ent.it) {
-						this.setIt();
-						ent.setNotIt();
-					}
 				}
 				this.gravityField -= 4;
-			
-			
-			
-			
-
-			/* if (ent != this && this.collide({ x: ent.x, y: ent.y, radius: this.visualRadius })) {
-				console.log("2 if");
-
-				var dist = distance(this, ent);
-				if (this.it && dist > this.radius + ent.radius + 10) {
-								console.log("3 if");
-
-					var difX = (ent.x - this.x)/dist;
-					var difY = (ent.y - this.y)/dist;
-					this.velocity.x += difX * acceleration / (dist*dist);
-					this.velocity.y += difY * acceleration / (dist * dist);
-					var speed = Math.sqrt(this.velocity.x*this.velocity.x + this.velocity.y*this.velocity.y);
-					if (speed > maxSpeed) {
-						var ratio = maxSpeed / speed;
-						this.velocity.x *= ratio;
-						this.velocity.y *= ratio;
-					}
-				}
-				if (ent.it && dist > this.radius + ent.radius) {
-					console.log("4 if");
-
-					var difX = (ent.x - this.x) / dist;
-					var difY = (ent.y - this.y) / dist;
-					this.velocity.x -= difX * acceleration / (dist * dist);
-					this.velocity.y -= difY * acceleration / (dist * dist);
-					var speed = Math.sqrt(this.velocity.x * this.velocity.x + this.velocity.y * this.velocity.y);
-					if (speed > maxSpeed) {
-						var ratio = maxSpeed / speed;
-						this.velocity.x *= ratio;
-						this.velocity.y *= ratio;
-					}
-				}
-			} */
-			
 		}
-		//console.log(this.collideCount + " " + (this.game.entities.length - 1));
 		if (this.collideCount == this.game.entities.length - 1) {
 			this.okToCollide = true;
 		} else {
@@ -481,8 +396,6 @@ Planet.prototype.update = function () {
 		}
 		this.velocity.x -= (1 - friction) * this.game.clockTick * this.velocity.x;
 		this.velocity.y -= (1 - friction) * this.game.clockTick * this.velocity.y;
-		//this.x = this.x -  this.radius * 3 - this.radius / 2;
-		//this.y = this.y - this.radius * 3 - this.radius / 2;
 
 		for (var i = 0; i < this.sentinels.length; i++) {
 			this.sentinels[i].update();
@@ -491,27 +404,24 @@ Planet.prototype.update = function () {
 };
 
 Planet.prototype.draw = function (ctx) {
-	//ctx.save();
-	//ctx.translate(this.x, this.y);
+
     ctx.beginPath();
     ctx.fillStyle = this.actualColor;
     ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2, false);
     ctx.fill();
     ctx.closePath();
-	//ctx.restore();
 	for (var i = 0; i < this.sentinels.length; i++) {
 		this.sentinels[i].draw(ctx);
-		if (this.sentinels[i].hasWeapon) {
+		/* if (this.sentinels[i].hasWeapon) {
 			ctx.beginPath();
 			ctx.moveTo(this.x, this.y);
 			ctx.strokeStyle = "white";
 			ctx.lineTo(this.sentinels[i].x, this.sentinels[i].y);
 			ctx.closePath();
 			ctx.stroke();
-		}	
-		
+		}		 */	
 	};
-	for (var i = 0; i < this.game.entities.length; i++) {
+	/* for (var i = 0; i < this.game.entities.length; i++) {
 			var ent = this.game.entities[i];
 			if (ent != this && (ent instanceof Sentinel) && ent.radius <= 2) {
 				ctx.beginPath();
@@ -520,8 +430,7 @@ Planet.prototype.draw = function (ctx) {
 				ctx.lineTo(this.ent.x, this.ent.y);
 				ctx.closePath();
 				ctx.stroke();
-			}
-			
-	}
+			}		
+	} */
 };
 

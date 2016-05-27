@@ -208,12 +208,12 @@ ASSET_MANAGER.downloadAll(function () {
     //circle.setIt();
     //gameEngine.addEntity(circle);
     //gameEngine.addEntity(planet);
-	var numbOfPlanet = Math.random() * 6;
+	var numbOfPlanet = Math.random() * 3 + 3;
 	var colors = ["Red", "Orange", "Yellow", "Green", "Blue", "Indigo", "Violet"];
 	var characteristics;
 	var totalMass = Math.floor(Math.random() * 100);	//0 - 100
 	var changingMass = totalMass;
-	console.log("Total mass: " + totalMass);
+	//console.log("Total mass: " + totalMass);
 	characteristics = {id: 0, mass : totalMass, color: "white", planets: numbOfPlanet};
 	//var bigBang = new BigBang(gameEngine, canvas, characteristics);
 	//gameEngine.addEntity(bigBang);
@@ -237,15 +237,15 @@ ASSET_MANAGER.downloadAll(function () {
 				distanceMultiplier = Math.floor(Math.random() * numbSent) + temp; //At least two times the radius of the planet.
 			} while (distanceMultiplier <= temp * 0.5);
 			temp = distanceMultiplier;
-			console.log("j: " + j);
+			//console.log("j: " + j);
 			var sentinel = new Sentinel(gameEngine, canvas, planet, 0.1 / distanceMultiplier, distanceMultiplier, hasWeapon);
 			sentinels.push(sentinel);
 		 }
 		 temp = 0;
 		 planet.addSentinels(sentinels);
          gameEngine.addEntity(planet);
-		console.log("Planet mass: " + planetMass);
-		console.log("Changing mass: " + changingMass);
+		//console.log("Planet mass: " + planetMass);
+		//console.log("Changing mass: " + changingMass);
 
     }
 });
