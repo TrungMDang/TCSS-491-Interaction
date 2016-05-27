@@ -200,7 +200,7 @@ Sentinel.prototype.update = function() {
 
 Sentinel.prototype.draw = function(ctx) {
 	ctx.beginPath();
-    ctx.strokeStyle = "red";
+    ctx.strokeStyle = "silver";
     ctx.arc(this.planet.x, this.planet.y, this.planet.radius * this.distanceMultiplier, 0, Math.PI * 2, false);
     ctx.stroke();
     ctx.closePath();
